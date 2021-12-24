@@ -1,10 +1,10 @@
-# House Sales Price - Data Analysis
+# House Sales Price - Data Analysis (under development)
 ## Objective
 
 Here is, I'm using the [House Sales in King County, USA Dataset](https://www.kaggle.com/harlfoxem/housesalesprediction)
 to do some data analysis and practice some data visualization and deployment skills.
 
-After all, **I ended up developing and publishing a dashboard on Heroku** to be used in the daily lives of business people, but the main question I want to answer is: **"Which houses should I buy for resale?"**
+After all, **I ended up developing and publishing a [dashboard on Heroku](https://house-sales-price-analysis.herokuapp.com/)** to be used in the daily lives of business people, but the main question I want to answer is: **"Which houses should I buy for resale?"**
 
 ## Get to know the data
 
