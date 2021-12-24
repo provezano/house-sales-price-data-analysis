@@ -1,3 +1,4 @@
 notebooks/__pycache__
 notebooks/.ipynb_checkpoints
-notebooks/1-dashboard-dev/setup.sh
+notebooks/1-dashboard-dev/*.sh
+notebooks/1-dashboard-dev/*.csv

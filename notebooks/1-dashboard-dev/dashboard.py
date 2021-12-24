@@ -37,7 +37,7 @@ def generate_filtered_dataset(data, col, f_zipcode, f_attributes):
         
     return df_metrics[[col, 'zipcode']].groupby('zipcode').mean().reset_index()
 
-path = '../data/kc_house_data.csv'
+path = 'kc_house_data.csv'
 data = get_data(path)
 
 #url = 'https://opendata.arcgis.com/datasets/83fc2e72903343aabff6de8cb445b81c_2.geojson'
@@ -101,7 +101,7 @@ density_map = folium.Map( location=[data['lat'].mean(),
                           default_zoom_start=15 ) 
 
 marker_cluster = MarkerCluster().add_to( density_map )
-for name, row in df.iterrows():
+for name, row in data.iterrows():
     folium.Marker( [row['lat'], row['long'] ], 
         popup='Sold R${0} on: {1}. Features: {2} sqft, {3} bedrooms, {4} bathrooms, year built: {5}'.format( row['price'],
                                      row['date'],
@@ -115,17 +115,17 @@ with c1:
     
 c2.header('Price density')
 
-df = data[['price', 'zipcode']].groupby( 'zipcode' ).mean().reset_index()
-df.columns = ['ZIP', 'PRICE']
+df_map = data[['price', 'zipcode']].groupby( 'zipcode' ).mean().reset_index()
+df_map.columns = ['ZIP', 'PRICE']
 
 
-geofile = geofile[geofile['ZIP'].isin( df['ZIP'].tolist() )]
+geofile = geofile[geofile['ZIP'].isin( df_map['ZIP'].tolist() )]
 
 region_price_map = folium.Map( location=[data['lat'].mean(), 
                                data['long'].mean() ],
                                default_zoom_start=15 ) 
 
-region_price_map.choropleth( data = df,
+region_price_map.choropleth( data = df_map,
                              geo_data = geofile,
                              columns=['ZIP', 'PRICE'],
                              key_on='feature.properties.ZIP',
