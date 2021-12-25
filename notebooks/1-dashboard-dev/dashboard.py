@@ -140,14 +140,14 @@ region_price_map = folium.Map(location=[data['lat'].mean(),
                                data['long'].mean()],
                                default_zoom_start=15) 
 
-region_price_map.choropleth(data = df,
+folium.Choropleth(data = df,
                              geo_data = geofile,
                              columns=['ZIP', 'PRICE'],
                              key_on='feature.properties.ZIP',
                              fill_color='YlOrRd',
                              fill_opacity = 0.7,
                              line_opacity = 0.2,
-                             legend_name='AVG PRICE')
+                             legend_name='AVG PRICE').add_to(region_price_map)
 with c2:
     folium_static(region_price_map)
     
@@ -175,7 +175,6 @@ max_date = datetime.strptime(datetime.strftime(data['date'].max(), '%Y-%m-%d'), 
 mode_date = datetime.strptime(datetime.strftime(data['date'].mode()[0], '%Y-%m-%d'), '%Y-%m-%d')
 
 st.sidebar.subheader('Select max date')
-print(min_date, type(min_date))
 f_date = st.sidebar.slider('Date', min_date, max_date, mode_date)
 
 st.header('Average price per date')
