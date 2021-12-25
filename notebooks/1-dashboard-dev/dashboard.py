@@ -20,9 +20,10 @@ def get_geofile( url ):
     geofile = geopandas.read_file( url )
     return geofile
 
-def generate_filtered_dataset(data, col, f_zipcode, f_attributes):
-    f_attributes = list(set(f_attributes + ['zipcode', col]))
-
+def filter_dataframe(data, f_zipcode, f_attributes):
+    if f_attributes != [] and f_attributes not in f_attributes:
+        f_attributes = list(dict.fromkeys(['zipcode'] + f_attributes))
+    
     if f_attributes != [] and f_zipcode != []:
         df_metrics = data.loc[data['zipcode'].isin(f_zipcode), f_attributes].copy()
     elif f_attributes == [] and f_zipcode != []:
@@ -31,46 +32,61 @@ def generate_filtered_dataset(data, col, f_zipcode, f_attributes):
         df_metrics = data.loc[:, f_attributes].copy()
     else:
         df_metrics = data.copy()
+
+    return df_metrics
+
+def generate_filtered_dataset(data, col, f_zipcode, f_attributes):
+    if f_attributes != [] and f_attributes not in f_attributes:
+        f_attributes = list(dict.fromkeys([col] + f_attributes))
+    
+    df_metrics = filter_dataframe(data, f_zipcode, f_attributes)
     
     if df_metrics[col].dtype in ['byte', 'int8', 'int32', 'int64']:
         df_metrics[[col, 'zipcode']].groupby('zipcode').count().reset_index()
         
     return df_metrics[[col, 'zipcode']].groupby('zipcode').mean().reset_index()
 
+
+# Data Ingest
 path = 'kc_house_data.csv'
 data = get_data(path)
 
+# Get Zip Codes Data from ArcGis
 #url = 'https://opendata.arcgis.com/datasets/83fc2e72903343aabff6de8cb445b81c_2.geojson'
 url = 'Zip_Codes.geojson'
 geofile = get_geofile( url )
 
+# Feature Engineering
 data['price_m2'] = data['price']/(data['sqft_lot']/10.764)
 data['date'] = pd.to_datetime(data['date'])
 data['yr_built'] = data['yr_built'].astype(int)
 
+# Add image to sidebar
 st.sidebar.image("https://cdn4.iconfinder.com/data/icons/02-real-estate-outline-colors/91/RealEstate-64-512.png", use_column_width=True)
 
+# Add title to sidebar
 st.sidebar.title('Table filters')
 
-f_attributes = st.sidebar.multiselect('Enter columns', data.columns)
+# Add filtering options to the dataframe
+f_attributes = st.sidebar.multiselect('Enter columns', [col for col in data.columns if col != 'zipcode'])
 f_zipcode = st.sidebar.multiselect('Enter zipcode(s)', np.sort(data['zipcode'].unique()))
 
-if f_attributes != [] and f_zipcode != []:
-    df = data.loc[data['zipcode'].isin(f_zipcode), f_attributes].copy()
-elif f_attributes == [] and f_zipcode != []:
-    df = data.loc[data['zipcode'].isin(f_zipcode), :].copy()
-elif f_attributes != [] and f_zipcode == []:
-    df = data.loc[:, f_attributes].copy()
-else:
-    df = data.copy()
+# Apply the filters
+df = filter_dataframe(data, f_zipcode, f_attributes)
 
+# Main page title
 st.title('House sales price - Data analysis')
 
+# Header to the Dataframe
 st.header('Data Sample (showing only a sample of 20 houses)')
+
+#Show the top 20 of our dataframe
 st.dataframe(df.head(20))
-    
+
+# Divide main page in two columns
 c1, c2 = st.columns((1, 1)) 
-    
+
+# Generate filtered data to apply some stats on
 df1 = generate_filtered_dataset(data, 'id', f_zipcode, f_attributes)
 df2 = generate_filtered_dataset(data, 'price', f_zipcode, f_attributes)
 df3 = generate_filtered_dataset(data, 'sqft_living', f_zipcode, f_attributes)
@@ -86,22 +102,21 @@ c1.header('Average per zipcode')
 c1.dataframe(m3.head(8), height=600)
 
 c2.header('Descriptive statistics')
-c2.dataframe( df.describe(), height=800 )
-
+c2.dataframe(df.describe(include=['float', 'int']), height=800)
 
 st.title('Region overview')
 
 c1, c2 = st.columns(( 1, 1 ))
-c1.header( 'Portfolio density' )
+c1.header('Portfolio density')
 
-#df = data.sample(10)
+df = data.sample(50)
  
 density_map = folium.Map( location=[data['lat'].mean(), 
                           data['long'].mean() ],
-                          default_zoom_start=15 ) 
+                          default_zoom_start=15) 
 
 marker_cluster = MarkerCluster().add_to( density_map )
-for name, row in data.iterrows():
+for name, row in df.iterrows():
     folium.Marker( [row['lat'], row['long'] ], 
         popup='Sold R${0} on: {1}. Features: {2} sqft, {3} bedrooms, {4} bathrooms, year built: {5}'.format( row['price'],
                                      row['date'],
@@ -115,24 +130,24 @@ with c1:
     
 c2.header('Price density')
 
-df_map = data[['price', 'zipcode']].groupby( 'zipcode' ).mean().reset_index()
-df_map.columns = ['ZIP', 'PRICE']
+df = data[['price', 'zipcode']].groupby( 'zipcode' ).mean().reset_index()
+df.columns = ['ZIP', 'PRICE']
 
 
-geofile = geofile[geofile['ZIP'].isin( df_map['ZIP'].tolist() )]
+geofile = geofile[geofile['ZIP'].isin(df['ZIP'].tolist())]
 
-region_price_map = folium.Map( location=[data['lat'].mean(), 
-                               data['long'].mean() ],
-                               default_zoom_start=15 ) 
+region_price_map = folium.Map(location=[data['lat'].mean(), 
+                               data['long'].mean()],
+                               default_zoom_start=15) 
 
-region_price_map.choropleth( data = df_map,
+region_price_map.choropleth(data = df,
                              geo_data = geofile,
                              columns=['ZIP', 'PRICE'],
                              key_on='feature.properties.ZIP',
                              fill_color='YlOrRd',
                              fill_opacity = 0.7,
                              line_opacity = 0.2,
-                             legend_name='AVG PRICE' )
+                             legend_name='AVG PRICE')
 with c2:
     folium_static(region_price_map)
     
@@ -155,8 +170,8 @@ fig = px.line(df, x='yr_built', y='price')
 
 st.plotly_chart(fig, use_container_width=True)
 
-min_date =  datetime.strptime(datetime.strftime(data['date'].min(), '%Y-%m-%d'), '%Y-%m-%d')
-max_date =  datetime.strptime(datetime.strftime(data['date'].max(), '%Y-%m-%d'), '%Y-%m-%d')
+min_date = datetime.strptime(datetime.strftime(data['date'].min(), '%Y-%m-%d'), '%Y-%m-%d')
+max_date = datetime.strptime(datetime.strftime(data['date'].max(), '%Y-%m-%d'), '%Y-%m-%d')
 mode_date = datetime.strptime(datetime.strftime(data['date'].mode()[0], '%Y-%m-%d'), '%Y-%m-%d')
 
 st.sidebar.subheader('Select max date')
